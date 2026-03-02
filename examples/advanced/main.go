@@ -99,6 +99,23 @@ func main() {
 	})(handler)
 	fmt.Println("  custom func      → rate limit per user ID")
 
+	// ── CMS PreFilter (DDoS mitigation) ────────────────────────
+	// CMS runs locally in nanoseconds. Only normal-looking traffic
+	// escalates to the precise limiter (which may hit Redis).
+	fmt.Println("\n=== CMS PreFilter (DDoS Pattern) ===")
+	sketch, _ := goratelimit.NewCMS(
+		100,   // 100 req / window
+		60,    // 60-second window
+		0.01,  // 1% error rate
+		0.001, // 0.1% failure probability
+	)
+	precise, _ := goratelimit.NewGCRA(10, 20) // precise in-memory GCRA
+	prefilter := goratelimit.NewPreFilter(sketch, precise)
+	r, _ = prefilter.Allow(ctx, "suspect-ip")
+	fmt.Printf("  prefilter: allowed=%v remaining=%d\n", r.Allowed, r.Remaining)
+	fmt.Printf("  CMS memory: %d bytes (fixed, regardless of unique keys)\n",
+		goratelimit.CMSMemoryBytes(0.01, 0.001))
+
 	// ── Builder API with all options ────────────────────────────
 	fmt.Println("\n=== Builder API ===")
 	built, _ := goratelimit.NewBuilder().

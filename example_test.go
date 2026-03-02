@@ -92,6 +92,29 @@ func ExampleNewBuilder() {
 	// Output: allowed=true remaining=99
 }
 
+func ExampleNewCMS() {
+	limiter, _ := goratelimit.NewCMS(100, 60, 0.01, 0.001)
+	result, _ := limiter.Allow(context.Background(), "user:123")
+	fmt.Printf("allowed=%v remaining=%d\n", result.Allowed, result.Remaining)
+	// Output: allowed=true remaining=99
+}
+
+func ExampleNewPreFilter() {
+	local, _ := goratelimit.NewCMS(100, 60, 0.01, 0.001)
+	precise, _ := goratelimit.NewGCRA(5, 10)
+	limiter := goratelimit.NewPreFilter(local, precise)
+
+	result, _ := limiter.Allow(context.Background(), "user:123")
+	fmt.Printf("allowed=%v remaining=%d\n", result.Allowed, result.Remaining)
+	// Output: allowed=true remaining=8
+}
+
+func ExampleCMSMemoryBytes() {
+	bytes := goratelimit.CMSMemoryBytes(0.01, 0.001)
+	fmt.Printf("memory=%d bytes\n", bytes)
+	// Output: memory=30464 bytes
+}
+
 func ExampleWithLimitFunc() {
 	limiter, _ := goratelimit.NewFixedWindow(5, 60,
 		goratelimit.WithLimitFunc(func(key string) int64 {

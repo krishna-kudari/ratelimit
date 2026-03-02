@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/krishna-kudari/ratelimit)](https://goreportcard.com/report/github.com/krishna-kudari/ratelimit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Production-grade rate limiting for [Go](https://go.dev/). One import, six algorithms, any backend.
+Production-grade rate limiting for [Go](https://go.dev/). One import, seven algorithms, any backend.
 
 - In-memory or [Redis](https://redis.io/) (standalone, Cluster, Ring, Sentinel)
 - Drop-in middleware for [net/http](https://pkg.go.dev/net/http), [Gin](https://gin-gonic.com/), [Echo](https://echo.labstack.com/), [Fiber](https://gofiber.io/), and [gRPC](https://grpc.io/)
@@ -23,6 +23,7 @@ Production-grade rate limiting for [Go](https://go.dev/). One import, six algori
 | **Token Bucket**           | `HASH` + Lua script                        | Tokens refill at a steady rate; each request consumes one. Allows short bursts.                          |
 | **Leaky Bucket**           | `HASH` + Lua script                        | Requests fill a bucket that leaks at a constant rate. Policing drops excess; shaping queues with a delay.|
 | **GCRA**                   | `HASH` + Lua script                        | Generic Cell Rate Algorithm. Sustained rate + burst allowance via virtual scheduling.                    |
+| **Count-Min Sketch**       | In-memory only                             | Fixed-memory probabilistic sketch. Approximate per-key counts regardless of cardinality. Fast local pre-filter. |
 
 ## Install
 
@@ -156,6 +157,38 @@ collector := metrics.NewCollector()
 limiter = metrics.Wrap(limiter, metrics.TokenBucket, collector)
 ```
 
+### Count-Min Sketch (Fixed-Memory Rate Limiting)
+
+```go
+// ~30 KB fixed, regardless of how many unique keys hit the limiter
+limiter, _ := goratelimit.NewCMS(
+    100,   // 100 requests per window
+    60,    // 60-second window
+    0.01,  // 1% error rate
+    0.001, // 0.1% failure probability
+)
+
+fmt.Println(goratelimit.CMSMemoryBytes(0.01, 0.001)) // 30464 bytes
+```
+
+### PreFilter (CMS + Redis for DDoS Mitigation)
+
+Chain a fast local CMS with a precise distributed limiter. The CMS blocks
+obvious abusers in nanoseconds; only normal-looking traffic reaches Redis.
+
+```go
+// Local sketch — absorbs attack traffic, zero network calls
+cms, _ := goratelimit.NewCMS(100, 60, 0.01, 0.001)
+
+// Precise limiter — global, accurate (e.g. Redis-backed GCRA)
+gcra, _ := goratelimit.NewGCRA(10, 20, goratelimit.WithRedis(client))
+
+// Compose: CMS first, then GCRA
+limiter := goratelimit.NewPreFilter(cms, gcra)
+
+result, _ := limiter.Allow(ctx, "192.168.1.1")
+```
+
 ### Redis Cluster
 
 ```go
@@ -166,14 +199,14 @@ goratelimit.WithHashTag() // keys become prefix:{key} for slot routing
 
 | Example | What it covers | Run |
 |---------|---------------|-----|
-| [`basic`](examples/basic) | All 6 algorithms, AllowN, Reset, Builder | `go run ./examples/basic/` |
+| [`basic`](examples/basic) | All 7 algorithms, AllowN, Reset, PreFilter, Builder | `go run ./examples/basic/` |
 | [`httpserver`](examples/httpserver) | net/http server with rate limiting | `go run ./examples/httpserver/` |
 | [`ginserver`](examples/ginserver) | Gin server with rate limiting | `go run ./examples/ginserver/` |
 | [`echoserver`](examples/echoserver) | Echo server with rate limiting | `go run ./examples/echoserver/` |
 | [`fiberserver`](examples/fiberserver) | Fiber server with rate limiting | `go run ./examples/fiberserver/` |
 | [`grpcserver`](examples/grpcserver) | gRPC interceptors (unary + stream) | `go run ./examples/grpcserver/` |
 | [`redis`](examples/redis) | Redis backend, Cluster hash tags | `go run ./examples/redis/` |
-| [`advanced`](examples/advanced) | Dynamic limits, cache, Prometheus, key strategies | `go run ./examples/advanced/` |
+| [`advanced`](examples/advanced) | Dynamic limits, cache, Prometheus, PreFilter, key strategies | `go run ./examples/advanced/` |
 | [`demo`](examples/demo) | Interactive web visualizer for all algorithms | `go run ./examples/demo/` |
 
 ### Interactive Demo
@@ -197,6 +230,9 @@ NewSlidingWindowCounter(maxRequests, windowSeconds int64, opts ...Option) (Limit
 NewTokenBucket(capacity, refillRate int64, opts ...Option) (Limiter, error)
 NewLeakyBucket(capacity, leakRate int64, mode LeakyBucketMode, opts ...Option) (Limiter, error)
 NewGCRA(rate, burst int64, opts ...Option) (Limiter, error)
+NewCMS(limit, windowSeconds int64, epsilon, delta float64, opts ...Option) (Limiter, error)
+NewPreFilter(local, precise Limiter) Limiter
+CMSMemoryBytes(epsilon, delta float64) int
 ```
 
 ### Limiter Interface

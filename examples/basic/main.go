@@ -1,4 +1,4 @@
-// All six algorithms — direct usage, AllowN, Reset, and Builder API.
+// All seven algorithms — direct usage, AllowN, Reset, PreFilter, and Builder API.
 // Run: go run ./examples/basic/
 package main
 
@@ -72,6 +72,25 @@ func main() {
 	gcra, _ := goratelimit.NewGCRA(2, 4)
 	for i := 1; i <= 6; i++ {
 		r, _ := gcra.Allow(ctx, "user:1")
+		fmt.Printf("  req %d: allowed=%-5v remaining=%d\n", i, r.Allowed, r.Remaining)
+	}
+
+	// ── Count-Min Sketch ───────────────────────────────────────
+	fmt.Println("\n=== Count-Min Sketch (limit=5, window=10s, ε=0.01, δ=0.001) ===")
+	cms, _ := goratelimit.NewCMS(5, 10, 0.01, 0.001)
+	for i := 1; i <= 7; i++ {
+		r, _ := cms.Allow(ctx, "user:1")
+		fmt.Printf("  req %d: allowed=%-5v remaining=%d\n", i, r.Allowed, r.Remaining)
+	}
+	fmt.Printf("  memory: %d bytes (fixed)\n", goratelimit.CMSMemoryBytes(0.01, 0.001))
+
+	// ── PreFilter (CMS + GCRA) ─────────────────────────────────
+	fmt.Println("\n=== PreFilter — CMS guards GCRA ===")
+	local, _ := goratelimit.NewCMS(10, 60, 0.01, 0.001)
+	precise, _ := goratelimit.NewGCRA(5, 5)
+	pf := goratelimit.NewPreFilter(local, precise)
+	for i := 1; i <= 7; i++ {
+		r, _ := pf.Allow(ctx, "user:1")
 		fmt.Printf("  req %d: allowed=%-5v remaining=%d\n", i, r.Allowed, r.Remaining)
 	}
 

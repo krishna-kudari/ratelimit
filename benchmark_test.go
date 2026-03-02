@@ -45,6 +45,18 @@ func BenchmarkGCRA(b *testing.B) {
 	benchAllow(b, l)
 }
 
+func BenchmarkCMS(b *testing.B) {
+	l, _ := NewCMS(int64(b.N)+1, 3600, 0.01, 0.001)
+	benchAllow(b, l)
+}
+
+func BenchmarkPreFilter(b *testing.B) {
+	local, _ := NewCMS(int64(b.N)+1, 3600, 0.01, 0.001)
+	precise, _ := NewGCRA(int64(b.N)+1, int64(b.N)+1)
+	l := NewPreFilter(local, precise)
+	benchAllow(b, l)
+}
+
 // ─── Parallel (contended single key) ─────────────────────────────────────────
 
 func BenchmarkFixedWindow_Parallel(b *testing.B) {
@@ -72,6 +84,18 @@ func BenchmarkGCRA_Parallel(b *testing.B) {
 	benchAllowParallel(b, l, "shared")
 }
 
+func BenchmarkCMS_Parallel(b *testing.B) {
+	l, _ := NewCMS(1<<62, 3600, 0.01, 0.001)
+	benchAllowParallel(b, l, "shared")
+}
+
+func BenchmarkPreFilter_Parallel(b *testing.B) {
+	local, _ := NewCMS(1<<62, 3600, 0.01, 0.001)
+	precise, _ := NewGCRA(1<<62, 1<<62)
+	l := NewPreFilter(local, precise)
+	benchAllowParallel(b, l, "shared")
+}
+
 // ─── Parallel (distinct keys — no lock contention) ───────────────────────────
 
 func BenchmarkTokenBucket_DistinctKeys(b *testing.B) {
@@ -81,6 +105,11 @@ func BenchmarkTokenBucket_DistinctKeys(b *testing.B) {
 
 func BenchmarkFixedWindow_DistinctKeys(b *testing.B) {
 	l, _ := NewFixedWindow(1000, 3600)
+	benchAllowParallelDistinct(b, l)
+}
+
+func BenchmarkCMS_DistinctKeys(b *testing.B) {
+	l, _ := NewCMS(1000, 3600, 0.01, 0.001)
 	benchAllowParallelDistinct(b, l)
 }
 

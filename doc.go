@@ -10,6 +10,7 @@
 //   - Token Bucket — steady refill, burst-friendly
 //   - Leaky Bucket — constant drain, policing or shaping mode
 //   - GCRA — virtual scheduling with sustained rate + burst
+//   - Count-Min Sketch — fixed-memory probabilistic pre-filter
 //
 // # Quick Start
 //

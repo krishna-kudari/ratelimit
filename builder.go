@@ -19,6 +19,7 @@ const (
 	algoTokenBucket
 	algoLeakyBucket
 	algoGCRA
+	algoCMS
 )
 
 // Builder provides a fluent API for constructing a Limiter.
@@ -48,6 +49,12 @@ type Builder struct {
 	// gcra
 	gcraRate  int64
 	gcraBurst int64
+
+	// cms
+	cmsLimit      int64
+	cmsWindowSecs int64
+	cmsEpsilon    float64
+	cmsDelta      float64
 }
 
 // NewBuilder returns a new Builder with default options.
@@ -115,6 +122,20 @@ func (b *Builder) GCRA(rate, burst int64) *Builder {
 	return b
 }
 
+// CMS configures a Count-Min Sketch rate limiter.
+// limit is the max requests per window. window is the window duration.
+// epsilon is the acceptable error rate (e.g. 0.01).
+// delta is the failure probability (e.g. 0.001).
+// This algorithm is in-memory only; Redis options are ignored.
+func (b *Builder) CMS(limit int64, window time.Duration, epsilon, delta float64) *Builder {
+	b.algo = algoCMS
+	b.cmsLimit = limit
+	b.cmsWindowSecs = int64(window.Seconds())
+	b.cmsEpsilon = epsilon
+	b.cmsDelta = delta
+	return b
+}
+
 // ─── Option setters ──────────────────────────────────────────────────────────
 
 // Redis sets the Redis backend. Accepts any redis.UniversalClient.
@@ -173,7 +194,9 @@ func (b *Builder) Build() (Limiter, error) {
 		return NewLeakyBucket(b.lbCapacity, b.lbLeakRate, b.lbMode, b.opts...)
 	case algoGCRA:
 		return NewGCRA(b.gcraRate, b.gcraBurst, b.opts...)
+	case algoCMS:
+		return NewCMS(b.cmsLimit, b.cmsWindowSecs, b.cmsEpsilon, b.cmsDelta, b.opts...)
 	default:
-		return nil, fmt.Errorf("goratelimit: no algorithm selected; call FixedWindow, SlidingWindow, TokenBucket, LeakyBucket, or GCRA before Build")
+		return nil, fmt.Errorf("goratelimit: no algorithm selected; call FixedWindow, SlidingWindow, TokenBucket, LeakyBucket, GCRA, or CMS before Build")
 	}
 }
