@@ -1,4 +1,8 @@
-.PHONY: test bench lint fmt vet ci clean
+.PHONY: test bench lint fmt vet ci clean setup
+
+setup:
+	git config core.hooksPath .githooks
+	@echo "Git hooks installed from .githooks/"
 
 test:
 	go test -race -count=1 ./...

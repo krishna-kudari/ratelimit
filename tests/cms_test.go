@@ -492,7 +492,7 @@ func TestPreFilter(t *testing.T) {
 
 	t.Run("precise blocks even when local allows", func(t *testing.T) {
 		local, _ := goratelimit.NewCMS(100, 60, 0.01, 0.001) // very permissive
-		precise, _ := goratelimit.NewGCRA(10, 3)              // strict
+		precise, _ := goratelimit.NewGCRA(10, 3)             // strict
 
 		limiter := goratelimit.NewPreFilter(local, precise)
 

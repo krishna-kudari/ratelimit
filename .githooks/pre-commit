@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ─── gofmt ────────────────────────────────────────────────────────────────────
+# Auto-format staged .go files and re-stage them so the commit contains
+# the formatted version. Fails if any file needed formatting (so the diff
+# is visible in `git diff --cached` before the retry).
+
+STAGED_GO=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+if [ -z "$STAGED_GO" ]; then
+    exit 0
+fi
+
+UNFORMATTED=$(echo "$STAGED_GO" | xargs gofmt -l 2>/dev/null || true)
+if [ -n "$UNFORMATTED" ]; then
+    echo "gofmt: formatting staged files..."
+    echo "$UNFORMATTED" | xargs gofmt -s -w
+    echo "$UNFORMATTED" | xargs git add
+    echo "gofmt: reformatted and re-staged:"
+    echo "$UNFORMATTED" | sed 's/^/  /'
+fi
+
+# ─── go vet ───────────────────────────────────────────────────────────────────
+echo "pre-commit: go vet ./..."
+if ! go vet ./... 2>&1; then
+    echo "pre-commit: go vet failed — fix errors before committing"
+    exit 1
+fi
+
+echo "pre-commit: OK"
