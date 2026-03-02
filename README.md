@@ -44,8 +44,8 @@ import (
 )
 
 func main() {
-    // 10 requests per 60-second window
-    limiter, _ := goratelimit.NewFixedWindow(10, 60)
+    // 100 requests per minute, in-memory
+    limiter, _ := goratelimit.New("", goratelimit.PerMinute(100))
 
     result, _ := limiter.Allow(context.Background(), "user:123")
     fmt.Printf("allowed=%v remaining=%d\n", result.Allowed, result.Remaining)
@@ -55,10 +55,20 @@ func main() {
 ### With Redis
 
 ```go
-import "github.com/redis/go-redis/v9"
+limiter, _ := goratelimit.New("redis://localhost:6379", goratelimit.PerMinute(100))
+```
 
-client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
+### For Tests
 
+```go
+limiter, _ := goratelimit.NewInMemory(goratelimit.PerSecond(50))
+```
+
+### Algorithm-Specific Constructors
+
+When you need a specific algorithm beyond the default (Fixed Window):
+
+```go
 limiter, _ := goratelimit.NewTokenBucket(100, 10,
     goratelimit.WithRedis(client),
 )
@@ -221,7 +231,22 @@ Open `http://localhost:8080` to explore all six algorithms with real-time visual
 
 ## API
 
-### Constructors
+### Sugar Constructors
+
+```go
+New(redisURL string, rate Rate, opts ...Option) (Limiter, error)   // "" for in-memory, Redis URL for distributed
+NewInMemory(rate Rate, opts ...Option) (Limiter, error)            // shorthand for New("")
+```
+
+### Rate Helpers
+
+```go
+PerSecond(n int64) Rate
+PerMinute(n int64) Rate
+PerHour(n int64) Rate
+```
+
+### Algorithm-Specific Constructors
 
 ```go
 NewFixedWindow(maxRequests, windowSeconds int64, opts ...Option) (Limiter, error)
