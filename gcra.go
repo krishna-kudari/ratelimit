@@ -54,17 +54,17 @@ type gcraMemory struct {
 	opts             *Options
 }
 
-func (g *gcraMemory) Allow(ctx context.Context, key string) (*Result, error) {
+func (g *gcraMemory) Allow(ctx context.Context, key string) (Result, error) {
 	return g.AllowN(ctx, key, 1)
 }
 
-func (g *gcraMemory) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (g *gcraMemory) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	burst, unlimited := g.opts.resolveLimit(ctx, key, g.burst)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 	burstAllowance := float64(burst-1) * g.emissionInterval
 
@@ -83,7 +83,7 @@ func (g *gcraMemory) AllowN(ctx context.Context, key string, n int) (*Result, er
 	if diff <= burstAllowance+g.emissionInterval {
 		state.tat = newTAT
 		remaining := int64(math.Floor((burstAllowance - diff + g.emissionInterval) / g.emissionInterval))
-		return &Result{
+		return Result{
 			Allowed:   true,
 			Remaining: remaining,
 			Limit:     burst,
@@ -91,7 +91,7 @@ func (g *gcraMemory) AllowN(ctx context.Context, key string, n int) (*Result, er
 	}
 
 	retryAfter := time.Duration(math.Ceil(diff-burstAllowance) * float64(time.Second))
-	return &Result{
+	return Result{
 		Allowed:    false,
 		Remaining:  0,
 		Limit:      burst,
@@ -140,14 +140,14 @@ type gcraRedis struct {
 	opts             *Options
 }
 
-func (g *gcraRedis) Allow(ctx context.Context, key string) (*Result, error) {
+func (g *gcraRedis) Allow(ctx context.Context, key string) (Result, error) {
 	return g.AllowN(ctx, key, 1)
 }
 
-func (g *gcraRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (g *gcraRedis) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	burst, unlimited := g.opts.resolveLimit(ctx, key, g.burst)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 	fullKey := g.opts.FormatKey(key)
 	burstAllowance := float64(burst-1) * g.emissionInterval
@@ -162,16 +162,16 @@ func (g *gcraRedis) AllowN(ctx context.Context, key string, n int) (*Result, err
 	).Int64Slice()
 	if err != nil {
 		if g.opts.FailOpen {
-			return &Result{Allowed: true, Remaining: burst - 1, Limit: burst}, nil
+			return Result{Allowed: true, Remaining: burst - 1, Limit: burst}, nil
 		}
-		return &Result{Allowed: false, Remaining: 0, Limit: burst}, redisErr(err, g.opts)
+		return Result{Allowed: false, Remaining: 0, Limit: burst}, redisErr(err, g.opts)
 	}
 
 	allowed := result[0] == 1
 	remaining := result[1]
 	retryAfterSec := result[2]
 
-	return &Result{
+	return Result{
 		Allowed:    allowed,
 		Remaining:  remaining,
 		Limit:      burst,

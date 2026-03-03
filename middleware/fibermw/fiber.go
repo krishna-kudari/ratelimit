@@ -102,14 +102,14 @@ func RateLimitWithConfig(cfg Config) fiber.Handler {
 		}
 
 		if sendHeaders {
-			setHeaders(c, result)
+			setHeaders(c, &result)
 		}
 
 		if !result.Allowed {
 			if result.RetryAfter > 0 {
 				c.Set("Retry-After", strconv.FormatInt(int64(result.RetryAfter.Seconds()+0.5), 10))
 			}
-			return cfg.DeniedHandler(c, result)
+			return cfg.DeniedHandler(c, &result)
 		}
 
 		return c.Next()

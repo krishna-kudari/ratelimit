@@ -31,11 +31,11 @@ func NewPreFilter(local, precise Limiter) Limiter {
 	return &preFilter{local: local, precise: precise}
 }
 
-func (p *preFilter) Allow(ctx context.Context, key string) (*Result, error) {
+func (p *preFilter) Allow(ctx context.Context, key string) (Result, error) {
 	return p.AllowN(ctx, key, 1)
 }
 
-func (p *preFilter) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (p *preFilter) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	localResult, err := p.local.AllowN(ctx, key, n)
 	if err != nil {
 		// Local limiter errored — fall through to precise.

@@ -95,11 +95,11 @@ func UnaryServerInterceptorWithConfig(cfg Config) grpc.UnaryServerInterceptor {
 		}
 
 		if sendHeaders {
-			setRateLimitMetadata(ctx, result)
+			setRateLimitMetadata(ctx, &result)
 		}
 
 		if !result.Allowed {
-			return nil, cfg.DeniedHandler(ctx, result)
+			return nil, cfg.DeniedHandler(ctx, &result)
 		}
 
 		return handler(ctx, req)
@@ -144,11 +144,11 @@ func StreamServerInterceptorWithConfig(cfg Config) grpc.StreamServerInterceptor 
 		}
 
 		if sendHeaders {
-			setRateLimitMetadata(ctx, result)
+			setRateLimitMetadata(ctx, &result)
 		}
 
 		if !result.Allowed {
-			return cfg.DeniedHandler(ctx, result)
+			return cfg.DeniedHandler(ctx, &result)
 		}
 
 		return handler(srv, ss)

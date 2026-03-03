@@ -57,13 +57,13 @@ type LocalCache struct {
 	inner   goratelimit.Limiter
 	config  cacheConfig
 	mu      sync.Mutex
-	entries map[string]*cacheEntry
+	entries map[string]cacheEntry
 	closeCh chan struct{}
 	closed  bool
 }
 
 type cacheEntry struct {
-	result    *goratelimit.Result
+	result    goratelimit.Result
 	localUsed int64
 	fetchedAt time.Time
 }
@@ -81,7 +81,7 @@ func New(inner goratelimit.Limiter, opts ...CacheOption) *LocalCache {
 	lc := &LocalCache{
 		inner:   inner,
 		config:  cfg,
-		entries: make(map[string]*cacheEntry),
+		entries: make(map[string]cacheEntry),
 		closeCh: make(chan struct{}),
 	}
 	go lc.evictionLoop()
@@ -89,32 +89,33 @@ func New(inner goratelimit.Limiter, opts ...CacheOption) *LocalCache {
 }
 
 // Allow checks whether a single request for key should be allowed.
-func (lc *LocalCache) Allow(ctx context.Context, key string) (*goratelimit.Result, error) {
+func (lc *LocalCache) Allow(ctx context.Context, key string) (goratelimit.Result, error) {
 	return lc.AllowN(ctx, key, 1)
 }
 
 // AllowN checks whether n requests for key should be allowed.
-func (lc *LocalCache) AllowN(ctx context.Context, key string, n int) (*goratelimit.Result, error) {
+func (lc *LocalCache) AllowN(ctx context.Context, key string, n int) (goratelimit.Result, error) {
 	lc.mu.Lock()
 
 	e, ok := lc.entries[key]
-	if ok && !lc.isExpired(e) {
+	if ok && !lc.isExpired(&e) {
 		// Cached denial — don't hammer the backend
 		if !e.result.Allowed {
 			lc.mu.Unlock()
-			return lc.cloneResult(e.result), nil
+			return e.result, nil
 		}
 
 		// Cached allow — check if local quota remains
 		cost := int64(n)
 		if e.result.Remaining-e.localUsed >= cost {
 			e.localUsed += cost
-			r := &goratelimit.Result{
+			r := goratelimit.Result{
 				Allowed:   true,
 				Remaining: e.result.Remaining - e.localUsed,
 				Limit:     e.result.Limit,
 				ResetAt:   e.result.ResetAt,
 			}
+			lc.entries[key] = e
 			lc.mu.Unlock()
 			return r, nil
 		}
@@ -125,11 +126,11 @@ func (lc *LocalCache) AllowN(ctx context.Context, key string, n int) (*goratelim
 	// Cache miss, expired, or local quota exhausted → sync with backend
 	result, err := lc.inner.AllowN(ctx, key, n)
 	if err != nil {
-		return result, err
+		return goratelimit.Result{}, err
 	}
 
 	lc.mu.Lock()
-	lc.entries[key] = &cacheEntry{
+	lc.entries[key] = cacheEntry{
 		result:    result,
 		localUsed: 0,
 		fetchedAt: time.Now(),
@@ -137,7 +138,7 @@ func (lc *LocalCache) AllowN(ctx context.Context, key string, n int) (*goratelim
 	lc.evictIfOverCapacity()
 	lc.mu.Unlock()
 
-	return lc.cloneResult(result), nil
+	return result, nil
 }
 
 // Reset clears rate limit state for key in both cache and backend.
@@ -184,16 +185,6 @@ func (lc *LocalCache) isExpired(e *cacheEntry) bool {
 	return time.Since(e.fetchedAt) >= ttl
 }
 
-func (lc *LocalCache) cloneResult(r *goratelimit.Result) *goratelimit.Result {
-	return &goratelimit.Result{
-		Allowed:    r.Allowed,
-		Remaining:  r.Remaining,
-		Limit:      r.Limit,
-		ResetAt:    r.ResetAt,
-		RetryAfter: r.RetryAfter,
-	}
-}
-
 func (lc *LocalCache) evictIfOverCapacity() {
 	if len(lc.entries) <= lc.config.maxKeys {
 		return
@@ -229,7 +220,7 @@ func (lc *LocalCache) evictExpired() {
 	lc.mu.Lock()
 	defer lc.mu.Unlock()
 	for k, e := range lc.entries {
-		if lc.isExpired(e) {
+		if lc.isExpired(&e) {
 			delete(lc.entries, k)
 		}
 	}

@@ -1,0 +1,46 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/krishna-kudari/ratelimit
+cpu: Apple M4
+BenchmarkFixedWindow-10             	25411210	        47.62 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10             	24736891	        47.71 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10             	25366402	        47.30 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10             	25380620	        47.15 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10             	25499046	        47.56 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSlidingWindow-10           	17170002	        74.68 ns/op	     136 B/op	       0 allocs/op
+BenchmarkSlidingWindow-10           	18894289	        63.94 ns/op	     124 B/op	       0 allocs/op
+BenchmarkSlidingWindow-10           	19082262	        63.19 ns/op	     123 B/op	       0 allocs/op
+BenchmarkSlidingWindow-10           	18563601	        62.84 ns/op	     126 B/op	       0 allocs/op
+BenchmarkSlidingWindow-10           	19291273	        60.71 ns/op	     121 B/op	       0 allocs/op
+BenchmarkSlidingWindowCounter-10    	17774211	        67.18 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSlidingWindowCounter-10    	17669665	        66.95 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSlidingWindowCounter-10    	17912541	        66.53 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSlidingWindowCounter-10    	17876539	        66.76 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSlidingWindowCounter-10    	18245839	        69.31 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTokenBucket-10             	19431060	        61.61 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTokenBucket-10             	19522749	        61.75 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTokenBucket-10             	19543761	        61.44 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTokenBucket-10             	19611661	        61.50 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTokenBucket-10             	19610018	        61.35 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLeakyBucket_Policing-10    	16609532	        72.36 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLeakyBucket_Policing-10    	16602417	        72.23 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLeakyBucket_Policing-10    	16641597	        72.39 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLeakyBucket_Policing-10    	16625238	        74.06 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLeakyBucket_Policing-10    	16605088	        72.26 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10                    	22303140	        53.89 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10                    	22406592	        53.76 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10                    	22357662	        53.67 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10                    	22510375	        53.42 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10                    	22340821	        53.35 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10                     	14093929	        86.67 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10                     	13447455	        85.58 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10                     	14099034	        85.46 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10                     	13810008	        86.25 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10                     	14024739	        90.70 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPreFilter-10               	 8436769	       157.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPreFilter-10               	 8263274	       157.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPreFilter-10               	 7502004	       163.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPreFilter-10               	 7609414	       149.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPreFilter-10               	 8380543	       150.0 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/krishna-kudari/ratelimit	51.805s

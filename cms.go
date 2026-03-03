@@ -127,17 +127,17 @@ func CMSMemoryBytes(epsilon, delta float64) int {
 	return 2 * width * depth * 8
 }
 
-func (r *cmsLimiter) Allow(ctx context.Context, key string) (*Result, error) {
+func (r *cmsLimiter) Allow(ctx context.Context, key string) (Result, error) {
 	return r.AllowN(ctx, key, 1)
 }
 
-func (r *cmsLimiter) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (r *cmsLimiter) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	limit, unlimited := r.opts.resolveLimit(ctx, key, r.limit)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 	now := r.opts.now()
 	windowDuration := time.Duration(r.windowSeconds) * time.Second
@@ -167,7 +167,7 @@ func (r *cmsLimiter) AllowN(ctx context.Context, key string, n int) (*Result, er
 		r.current.incrementBy(key, int64(n))
 		newEstimate := prevCount + float64(r.current.count(key))
 		remaining := int64(math.Max(0, math.Floor(float64(limit)-newEstimate)))
-		return &Result{
+		return Result{
 			Allowed:   true,
 			Remaining: remaining,
 			Limit:     limit,
@@ -178,7 +178,7 @@ func (r *cmsLimiter) AllowN(ctx context.Context, key string, n int) (*Result, er
 	if retryAfter < time.Second {
 		retryAfter = time.Second
 	}
-	return &Result{
+	return Result{
 		Allowed:    false,
 		Remaining:  0,
 		Limit:      limit,

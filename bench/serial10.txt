@@ -1,0 +1,35 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/krishna-kudari/ratelimit
+BenchmarkFixedWindow-10    	23986347	        50.77 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10    	24404504	        49.29 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10    	24392515	        52.13 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10    	24298178	        50.07 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10    	24364162	        49.49 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10    	24386938	        49.24 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10    	24315369	        49.23 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10    	24372864	        49.41 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10    	24381735	        49.25 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFixedWindow-10    	24448341	        49.48 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10           	22118965	        54.48 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10           	22021278	        54.34 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10           	22081046	        54.66 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10           	21950031	        54.37 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10           	22004434	        55.64 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10           	21894646	        54.62 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10           	22039495	        54.41 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10           	22060056	        55.68 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10           	22120002	        54.62 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGCRA-10           	21946351	        54.82 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10            	14133852	        85.37 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10            	13540324	        90.24 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10            	14106298	        85.43 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10            	13994142	        85.81 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10            	14134344	        85.01 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10            	13951440	        85.51 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10            	14092383	        85.00 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10            	14101561	        85.31 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10            	14094100	        85.09 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCMS-10            	14099179	        87.15 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/krishna-kudari/ratelimit	38.414s

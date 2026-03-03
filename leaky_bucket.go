@@ -21,7 +21,7 @@ const (
 
 // LeakyBucketResult extends Result with shaping-specific delay information.
 type LeakyBucketResult struct {
-	*Result
+	Result
 	Delay time.Duration // For shaping mode: how long to wait before processing.
 }
 
@@ -85,17 +85,17 @@ func (l *leakyBucketMemory) getState(key string) *leakyBucketState {
 	return state
 }
 
-func (l *leakyBucketMemory) Allow(ctx context.Context, key string) (*Result, error) {
+func (l *leakyBucketMemory) Allow(ctx context.Context, key string) (Result, error) {
 	return l.AllowN(ctx, key, 1)
 }
 
-func (l *leakyBucketMemory) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (l *leakyBucketMemory) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	limit, unlimited := l.opts.resolveLimit(ctx, key, l.limit)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 	cap := float64(limit)
 
@@ -105,7 +105,7 @@ func (l *leakyBucketMemory) AllowN(ctx context.Context, key string, n int) (*Res
 	return l.allowPolicing(key, n, cap)
 }
 
-func (l *leakyBucketMemory) allowPolicing(key string, n int, cap float64) (*Result, error) {
+func (l *leakyBucketMemory) allowPolicing(key string, n int, cap float64) (Result, error) {
 	state := l.getState(key)
 	limit := int64(cap)
 	now := l.opts.now()
@@ -119,7 +119,7 @@ func (l *leakyBucketMemory) allowPolicing(key string, n int, cap float64) (*Resu
 	if state.level+cost <= cap {
 		state.level += cost
 		remaining := int64(math.Max(0, math.Floor(cap-state.level)))
-		return &Result{
+		return Result{
 			Allowed:   true,
 			Remaining: remaining,
 			Limit:     limit,
@@ -127,7 +127,7 @@ func (l *leakyBucketMemory) allowPolicing(key string, n int, cap float64) (*Resu
 	}
 
 	retryAfter := time.Duration(math.Ceil(cost/l.leakRate) * float64(time.Second))
-	return &Result{
+	return Result{
 		Allowed:    false,
 		Remaining:  0,
 		Limit:      limit,
@@ -135,7 +135,7 @@ func (l *leakyBucketMemory) allowPolicing(key string, n int, cap float64) (*Resu
 	}, nil
 }
 
-func (l *leakyBucketMemory) allowShaping(key string, n int, cap float64) (*Result, error) {
+func (l *leakyBucketMemory) allowShaping(key string, n int, cap float64) (Result, error) {
 	state := l.getState(key)
 	limit := int64(cap)
 	now := l.opts.now()
@@ -153,7 +153,7 @@ func (l *leakyBucketMemory) allowShaping(key string, n int, cap float64) (*Resul
 		state.nextFree = state.nextFree.Add(time.Duration(cost / l.leakRate * float64(time.Second)))
 		queueDepth += cost
 		remaining := int64(math.Max(0, math.Floor(cap-queueDepth)))
-		return &Result{
+		return Result{
 			Allowed:    true,
 			Remaining:  remaining,
 			Limit:      limit,
@@ -161,7 +161,7 @@ func (l *leakyBucketMemory) allowShaping(key string, n int, cap float64) (*Resul
 		}, nil
 	}
 
-	return &Result{
+	return Result{
 		Allowed:   false,
 		Remaining: 0,
 		Limit:     limit,
@@ -270,14 +270,14 @@ type leakyBucketRedis struct {
 	opts     *Options
 }
 
-func (l *leakyBucketRedis) Allow(ctx context.Context, key string) (*Result, error) {
+func (l *leakyBucketRedis) Allow(ctx context.Context, key string) (Result, error) {
 	return l.AllowN(ctx, key, 1)
 }
 
-func (l *leakyBucketRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (l *leakyBucketRedis) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	cap, unlimited := l.opts.resolveLimit(ctx, key, l.capacity)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 	fullKey := l.opts.FormatKey(key)
 	now := float64(l.opts.now().UnixNano()) / 1e9
@@ -295,15 +295,15 @@ func (l *leakyBucketRedis) AllowN(ctx context.Context, key string, n int) (*Resu
 	).Int64Slice()
 	if err != nil {
 		if l.opts.FailOpen {
-			return &Result{Allowed: true, Remaining: cap - 1, Limit: cap}, nil
+			return Result{Allowed: true, Remaining: cap - 1, Limit: cap}, nil
 		}
-		return &Result{Allowed: false, Remaining: 0, Limit: cap}, redisErr(err, l.opts)
+		return Result{Allowed: false, Remaining: 0, Limit: cap}, redisErr(err, l.opts)
 	}
 
 	allowed := result[0] == 1
 	remaining := result[1]
 
-	r := &Result{
+	r := Result{
 		Allowed:   allowed,
 		Remaining: remaining,
 		Limit:     cap,

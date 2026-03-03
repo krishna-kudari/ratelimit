@@ -1,10 +1,19 @@
 package goratelimit
 
 import (
+	"io"
+	"log"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestMain(m *testing.M) {
+	// Suppress [DRYRUN] and other log output during tests and benchmarks.
+	log.SetOutput(io.Discard)
+	os.Exit(m.Run())
+}
 
 func TestFormatKey_Plain(t *testing.T) {
 	o := defaultOptions()

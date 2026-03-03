@@ -17,16 +17,16 @@ import (
 type mockLimiter struct {
 	mu       sync.Mutex
 	calls    int
-	allowN   func(ctx context.Context, key string, n int) (*goratelimit.Result, error)
+	allowN   func(ctx context.Context, key string, n int) (goratelimit.Result, error)
 	resetErr error
 	resets   int
 }
 
-func (m *mockLimiter) Allow(ctx context.Context, key string) (*goratelimit.Result, error) {
+func (m *mockLimiter) Allow(ctx context.Context, key string) (goratelimit.Result, error) {
 	return m.AllowN(ctx, key, 1)
 }
 
-func (m *mockLimiter) AllowN(ctx context.Context, key string, n int) (*goratelimit.Result, error) {
+func (m *mockLimiter) AllowN(ctx context.Context, key string, n int) (goratelimit.Result, error) {
 	m.mu.Lock()
 	m.calls++
 	m.mu.Unlock()
@@ -48,8 +48,8 @@ func (m *mockLimiter) getCalls() int {
 
 func TestLocalCache_CacheHit(t *testing.T) {
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, _ string, _ int) (*goratelimit.Result, error) {
-			return &goratelimit.Result{
+		allowN: func(_ context.Context, _ string, _ int) (goratelimit.Result, error) {
+			return goratelimit.Result{
 				Allowed:   true,
 				Remaining: 10,
 				Limit:     10,
@@ -80,8 +80,8 @@ func TestLocalCache_CacheHit(t *testing.T) {
 
 func TestLocalCache_RemainingDecreases(t *testing.T) {
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, _ string, _ int) (*goratelimit.Result, error) {
-			return &goratelimit.Result{
+		allowN: func(_ context.Context, _ string, _ int) (goratelimit.Result, error) {
+			return goratelimit.Result{
 				Allowed:   true,
 				Remaining: 5,
 				Limit:     5,
@@ -108,9 +108,9 @@ func TestLocalCache_RemainingDecreases(t *testing.T) {
 func TestLocalCache_ExhaustedLocalQuota_SyncsBackend(t *testing.T) {
 	var callCount atomic.Int64
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, _ string, _ int) (*goratelimit.Result, error) {
+		allowN: func(_ context.Context, _ string, _ int) (goratelimit.Result, error) {
 			callCount.Add(1)
-			return &goratelimit.Result{
+			return goratelimit.Result{
 				Allowed:   true,
 				Remaining: 2,
 				Limit:     3,
@@ -143,8 +143,8 @@ func TestLocalCache_ExhaustedLocalQuota_SyncsBackend(t *testing.T) {
 
 func TestLocalCache_DeniedCached(t *testing.T) {
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, _ string, _ int) (*goratelimit.Result, error) {
-			return &goratelimit.Result{
+		allowN: func(_ context.Context, _ string, _ int) (goratelimit.Result, error) {
+			return goratelimit.Result{
 				Allowed:    false,
 				Remaining:  0,
 				Limit:      10,
@@ -173,8 +173,8 @@ func TestLocalCache_DeniedCached(t *testing.T) {
 
 func TestLocalCache_TTLExpiry(t *testing.T) {
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, _ string, _ int) (*goratelimit.Result, error) {
-			return &goratelimit.Result{
+		allowN: func(_ context.Context, _ string, _ int) (goratelimit.Result, error) {
+			return goratelimit.Result{
 				Allowed:   true,
 				Remaining: 100,
 				Limit:     100,
@@ -205,9 +205,9 @@ func TestLocalCache_TTLExpiry(t *testing.T) {
 func TestLocalCache_DenialTTL_UsesRetryAfter(t *testing.T) {
 	callCount := 0
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, _ string, _ int) (*goratelimit.Result, error) {
+		allowN: func(_ context.Context, _ string, _ int) (goratelimit.Result, error) {
 			callCount++
-			return &goratelimit.Result{
+			return goratelimit.Result{
 				Allowed:    false,
 				Remaining:  0,
 				Limit:      10,
@@ -234,8 +234,8 @@ func TestLocalCache_DenialTTL_UsesRetryAfter(t *testing.T) {
 
 func TestLocalCache_AllowN(t *testing.T) {
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, _ string, _ int) (*goratelimit.Result, error) {
-			return &goratelimit.Result{
+		allowN: func(_ context.Context, _ string, _ int) (goratelimit.Result, error) {
+			return goratelimit.Result{
 				Allowed:   true,
 				Remaining: 10,
 				Limit:     10,
@@ -271,8 +271,8 @@ func TestLocalCache_AllowN(t *testing.T) {
 
 func TestLocalCache_Reset(t *testing.T) {
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, _ string, _ int) (*goratelimit.Result, error) {
-			return &goratelimit.Result{
+		allowN: func(_ context.Context, _ string, _ int) (goratelimit.Result, error) {
+			return goratelimit.Result{
 				Allowed:   true,
 				Remaining: 10,
 				Limit:     10,
@@ -301,8 +301,8 @@ func TestLocalCache_Reset(t *testing.T) {
 
 func TestLocalCache_MultipleKeys(t *testing.T) {
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, key string, _ int) (*goratelimit.Result, error) {
-			return &goratelimit.Result{
+		allowN: func(_ context.Context, key string, _ int) (goratelimit.Result, error) {
+			return goratelimit.Result{
 				Allowed:   true,
 				Remaining: 5,
 				Limit:     5,
@@ -331,8 +331,8 @@ func TestLocalCache_MultipleKeys(t *testing.T) {
 
 func TestLocalCache_MaxKeys(t *testing.T) {
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, _ string, _ int) (*goratelimit.Result, error) {
-			return &goratelimit.Result{
+		allowN: func(_ context.Context, _ string, _ int) (goratelimit.Result, error) {
+			return goratelimit.Result{
 				Allowed:   true,
 				Remaining: 10,
 				Limit:     10,
@@ -364,8 +364,8 @@ func TestLocalCache_MaxKeys(t *testing.T) {
 
 func TestLocalCache_ConcurrentAccess(t *testing.T) {
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, _ string, _ int) (*goratelimit.Result, error) {
-			return &goratelimit.Result{
+		allowN: func(_ context.Context, _ string, _ int) (goratelimit.Result, error) {
+			return goratelimit.Result{
 				Allowed:   true,
 				Remaining: 1000,
 				Limit:     1000,
@@ -397,8 +397,8 @@ func TestLocalCache_ConcurrentAccess(t *testing.T) {
 
 func TestLocalCache_Stats(t *testing.T) {
 	mock := &mockLimiter{
-		allowN: func(_ context.Context, _ string, _ int) (*goratelimit.Result, error) {
-			return &goratelimit.Result{
+		allowN: func(_ context.Context, _ string, _ int) (goratelimit.Result, error) {
+			return goratelimit.Result{
 				Allowed:   true,
 				Remaining: 10,
 				Limit:     10,

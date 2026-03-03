@@ -121,14 +121,14 @@ func RateLimitWithConfig(cfg Config) func(http.Handler) http.Handler {
 			}
 
 			if sendHeaders {
-				setRateLimitHeaders(w, result)
+				setRateLimitHeaders(w, &result)
 			}
 
 			if !result.Allowed {
 				if result.RetryAfter > 0 {
 					w.Header().Set("Retry-After", strconv.FormatInt(int64(result.RetryAfter.Seconds()+0.5), 10))
 				}
-				cfg.DeniedHandler(w, r, result)
+				cfg.DeniedHandler(w, r, &result)
 				return
 			}
 

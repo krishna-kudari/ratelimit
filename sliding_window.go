@@ -53,17 +53,17 @@ type slidingWindowMemory struct {
 	opts          *Options
 }
 
-func (s *slidingWindowMemory) Allow(ctx context.Context, key string) (*Result, error) {
+func (s *slidingWindowMemory) Allow(ctx context.Context, key string) (Result, error) {
 	return s.AllowN(ctx, key, 1)
 }
 
-func (s *slidingWindowMemory) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (s *slidingWindowMemory) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	maxReq, unlimited := s.opts.resolveLimit(ctx, key, s.maxRequests)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 
 	state, ok := s.states[key]
@@ -88,7 +88,7 @@ func (s *slidingWindowMemory) AllowN(ctx context.Context, key string, n int) (*R
 			state.timestamps = append(state.timestamps, now)
 		}
 		remaining := maxReq - int64(len(state.timestamps))
-		return &Result{
+		return Result{
 			Allowed:   true,
 			Remaining: remaining,
 			Limit:     maxReq,
@@ -105,7 +105,7 @@ func (s *slidingWindowMemory) AllowN(ctx context.Context, key string, n int) (*R
 		}
 	}
 
-	return &Result{
+	return Result{
 		Allowed:    false,
 		Remaining:  0,
 		Limit:      maxReq,
@@ -129,14 +129,14 @@ type slidingWindowRedis struct {
 	opts          *Options
 }
 
-func (s *slidingWindowRedis) Allow(ctx context.Context, key string) (*Result, error) {
+func (s *slidingWindowRedis) Allow(ctx context.Context, key string) (Result, error) {
 	return s.AllowN(ctx, key, 1)
 }
 
-func (s *slidingWindowRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (s *slidingWindowRedis) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	maxReq, unlimited := s.opts.resolveLimit(ctx, key, s.maxRequests)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 	fullKey := s.opts.FormatKey(key)
 	now := s.opts.now().UnixMilli()
@@ -165,7 +165,7 @@ func (s *slidingWindowRedis) AllowN(ctx context.Context, key string, n int) (*Re
 			return s.failResult(err, maxReq)
 		}
 		remaining := maxReq - count - cost
-		return &Result{
+		return Result{
 			Allowed:   true,
 			Remaining: remaining,
 			Limit:     maxReq,
@@ -184,7 +184,7 @@ func (s *slidingWindowRedis) AllowN(ctx context.Context, key string, n int) (*Re
 		}
 	}
 
-	return &Result{
+	return Result{
 		Allowed:    false,
 		Remaining:  0,
 		Limit:      maxReq,
@@ -197,9 +197,9 @@ func (s *slidingWindowRedis) Reset(ctx context.Context, key string) error {
 	return s.redis.Del(ctx, fullKey).Err()
 }
 
-func (s *slidingWindowRedis) failResult(err error, limit int64) (*Result, error) {
+func (s *slidingWindowRedis) failResult(err error, limit int64) (Result, error) {
 	if s.opts.FailOpen {
-		return &Result{Allowed: true, Remaining: limit - 1, Limit: limit}, nil
+		return Result{Allowed: true, Remaining: limit - 1, Limit: limit}, nil
 	}
-	return &Result{Allowed: false, Remaining: 0, Limit: limit}, redisErr(err, s.opts)
+	return Result{Allowed: false, Remaining: 0, Limit: limit}, redisErr(err, s.opts)
 }

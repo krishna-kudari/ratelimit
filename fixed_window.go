@@ -50,17 +50,17 @@ type fixedWindowMemory struct {
 	opts          *Options
 }
 
-func (f *fixedWindowMemory) Allow(ctx context.Context, key string) (*Result, error) {
+func (f *fixedWindowMemory) Allow(ctx context.Context, key string) (Result, error) {
 	return f.AllowN(ctx, key, 1)
 }
 
-func (f *fixedWindowMemory) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (f *fixedWindowMemory) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	maxReq, unlimited := f.opts.resolveLimit(ctx, key, f.maxRequests)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 
 	state, ok := f.states[key]
@@ -81,7 +81,7 @@ func (f *fixedWindowMemory) AllowN(ctx context.Context, key string, n int) (*Res
 		state.requests += cost
 		remaining := maxReq - state.requests
 		resetAt := state.windowStart.Add(windowDuration)
-		return &Result{
+		return Result{
 			Allowed:   true,
 			Remaining: remaining,
 			Limit:     maxReq,
@@ -94,7 +94,7 @@ func (f *fixedWindowMemory) AllowN(ctx context.Context, key string, n int) (*Res
 	if retryAfter < 0 {
 		retryAfter = 0
 	}
-	return &Result{
+	return Result{
 		Allowed:    false,
 		Remaining:  0,
 		Limit:      maxReq,
@@ -149,14 +149,14 @@ type fixedWindowRedis struct {
 	opts          *Options
 }
 
-func (f *fixedWindowRedis) Allow(ctx context.Context, key string) (*Result, error) {
+func (f *fixedWindowRedis) Allow(ctx context.Context, key string) (Result, error) {
 	return f.AllowN(ctx, key, 1)
 }
 
-func (f *fixedWindowRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (f *fixedWindowRedis) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	maxReq, unlimited := f.opts.resolveLimit(ctx, key, f.maxRequests)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 	fullKey := f.opts.FormatKey(key)
 	result, err := fixedWindowScript.Run(ctx, f.redis, []string{fullKey},
@@ -166,9 +166,9 @@ func (f *fixedWindowRedis) AllowN(ctx context.Context, key string, n int) (*Resu
 	).Int64Slice()
 	if err != nil {
 		if f.opts.FailOpen {
-			return &Result{Allowed: true, Remaining: maxReq - 1, Limit: maxReq}, nil
+			return Result{Allowed: true, Remaining: maxReq - 1, Limit: maxReq}, nil
 		}
-		return &Result{Allowed: false, Remaining: 0, Limit: maxReq}, redisErr(err, f.opts)
+		return Result{Allowed: false, Remaining: 0, Limit: maxReq}, redisErr(err, f.opts)
 	}
 
 	allowed := result[0] == 1
@@ -181,7 +181,7 @@ func (f *fixedWindowRedis) AllowN(ctx context.Context, key string, n int) (*Resu
 		retryAfter = time.Duration(ttlSec) * time.Second
 	}
 
-	return &Result{
+	return Result{
 		Allowed:    allowed,
 		Remaining:  remaining,
 		Limit:      maxReq,

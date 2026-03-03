@@ -125,12 +125,12 @@ func TestCollectorOptions(t *testing.T) {
 
 type failLimiter struct{}
 
-func (f *failLimiter) Allow(ctx context.Context, key string) (*goratelimit.Result, error) {
-	return nil, errors.New("backend down")
+func (f *failLimiter) Allow(ctx context.Context, key string) (goratelimit.Result, error) {
+	return f.AllowN(ctx, key, 1)
 }
 
-func (f *failLimiter) AllowN(ctx context.Context, key string, n int) (*goratelimit.Result, error) {
-	return nil, errors.New("backend down")
+func (f *failLimiter) AllowN(ctx context.Context, key string, n int) (goratelimit.Result, error) {
+	return goratelimit.Result{}, errors.New("backend down")
 }
 
 func (f *failLimiter) Reset(ctx context.Context, key string) error {

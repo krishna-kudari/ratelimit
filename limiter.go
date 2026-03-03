@@ -19,10 +19,10 @@ const Unlimited int64 = -1
 // making algorithms swappable without changing caller code.
 type Limiter interface {
 	// Allow checks whether a single request identified by key should be allowed.
-	Allow(ctx context.Context, key string) (*Result, error)
+	Allow(ctx context.Context, key string) (Result, error)
 
 	// AllowN checks whether n requests identified by key should be allowed.
-	AllowN(ctx context.Context, key string, n int) (*Result, error)
+	AllowN(ctx context.Context, key string, n int) (Result, error)
 
 	// Reset clears all rate limit state for the given key.
 	Reset(ctx context.Context, key string) error
@@ -226,29 +226,29 @@ type dryRunLimiter struct {
 	opts  *Options
 }
 
-func (d *dryRunLimiter) Allow(ctx context.Context, key string) (*Result, error) {
+func (d *dryRunLimiter) Allow(ctx context.Context, key string) (Result, error) {
 	return d.allowN(ctx, key, 1)
 }
 
-func (d *dryRunLimiter) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (d *dryRunLimiter) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	return d.allowN(ctx, key, n)
 }
 
-func (d *dryRunLimiter) allowN(ctx context.Context, key string, n int) (*Result, error) {
+func (d *dryRunLimiter) allowN(ctx context.Context, key string, n int) (Result, error) {
 	result, err := d.inner.AllowN(ctx, key, n)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
 	if result.Allowed {
 		return result, nil
 	}
 	if d.opts.DryRunLogFunc != nil {
-		d.opts.DryRunLogFunc(key, result)
+		d.opts.DryRunLogFunc(key, &result)
 	} else {
 		log.Printf("[DRYRUN] would deny key=%s limit=%d remaining=%d retry_after=%v",
 			key, result.Limit, result.Remaining, result.RetryAfter)
 	}
-	return &Result{
+	return Result{
 		Allowed:   true,
 		Remaining: result.Remaining,
 		Limit:     result.Limit,
@@ -266,17 +266,17 @@ type onLimitExceededLimiter struct {
 	opts  *Options
 }
 
-func (o *onLimitExceededLimiter) Allow(ctx context.Context, key string) (*Result, error) {
+func (o *onLimitExceededLimiter) Allow(ctx context.Context, key string) (Result, error) {
 	return o.AllowN(ctx, key, 1)
 }
 
-func (o *onLimitExceededLimiter) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (o *onLimitExceededLimiter) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	result, err := o.inner.AllowN(ctx, key, n)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
 	if !result.Allowed && o.opts.OnLimitExceeded != nil {
-		o.opts.OnLimitExceeded(ctx, key, result)
+		o.opts.OnLimitExceeded(ctx, key, &result)
 	}
 	return result, nil
 }

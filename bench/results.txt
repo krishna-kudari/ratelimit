@@ -1,0 +1,25 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/krishna-kudari/ratelimit
+               │ bench/serial10.txt │
+               │       sec/op       │
+FixedWindow-10          49.44n ± 3%
+GCRA-10                 54.62n ± 2%
+CMS-10                  85.40n ± 2%
+geomean                 61.33n
+
+               │ bench/serial10.txt │
+               │        B/op        │
+FixedWindow-10         0.000 ± 0%
+GCRA-10                0.000 ± 0%
+CMS-10                 0.000 ± 0%
+geomean                           ¹
+¹ summaries must be >0 to compute geomean
+
+               │ bench/serial10.txt │
+               │     allocs/op      │
+FixedWindow-10         0.000 ± 0%
+GCRA-10                0.000 ± 0%
+CMS-10                 0.000 ± 0%
+geomean                           ¹
+¹ summaries must be >0 to compute geomean

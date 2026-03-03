@@ -135,24 +135,21 @@ type instrumentedLimiter struct {
 	collector *Collector
 }
 
-func (l *instrumentedLimiter) Allow(ctx context.Context, key string) (*goratelimit.Result, error) {
+func (l *instrumentedLimiter) Allow(ctx context.Context, key string) (goratelimit.Result, error) {
 	return l.AllowN(ctx, key, 1)
 }
 
-func (l *instrumentedLimiter) AllowN(ctx context.Context, key string, n int) (*goratelimit.Result, error) {
+func (l *instrumentedLimiter) AllowN(ctx context.Context, key string, n int) (goratelimit.Result, error) {
 	start := time.Now()
 	result, err := l.inner.AllowN(ctx, key, n)
 	l.collector.duration.WithLabelValues(l.algorithm).Observe(time.Since(start).Seconds())
 
 	if err != nil {
 		l.collector.errors.WithLabelValues(l.algorithm).Inc()
-		if result != nil {
-			l.recordDecision(result)
-		}
-		return result, err
+		return goratelimit.Result{}, err
 	}
 
-	l.recordDecision(result)
+	l.recordDecision(&result)
 	return result, nil
 }
 

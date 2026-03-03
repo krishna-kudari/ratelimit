@@ -106,14 +106,14 @@ func RateLimitWithConfig(cfg Config) gin.HandlerFunc {
 		}
 
 		if sendHeaders {
-			setHeaders(c, result)
+			setHeaders(c, &result)
 		}
 
 		if !result.Allowed {
 			if result.RetryAfter > 0 {
 				c.Header("Retry-After", strconv.FormatInt(int64(result.RetryAfter.Seconds()+0.5), 10))
 			}
-			cfg.DeniedHandler(c, result)
+			cfg.DeniedHandler(c, &result)
 			return
 		}
 

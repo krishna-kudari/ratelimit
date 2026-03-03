@@ -404,7 +404,7 @@ func main() {
 						http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), 500)
 						return
 					}
-					results = append(results, toAPIResult(res))
+					results = append(results, toAPIResult(&res))
 				}
 				json.NewEncoder(w).Encode(results)
 			} else {
@@ -413,7 +413,7 @@ func main() {
 					http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err), 500)
 					return
 				}
-				json.NewEncoder(w).Encode(toAPIResult(res))
+				json.NewEncoder(w).Encode(toAPIResult(&res))
 			}
 			return
 		}

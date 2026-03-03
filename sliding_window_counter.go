@@ -55,17 +55,17 @@ type slidingWindowCounterMemory struct {
 	opts          *Options
 }
 
-func (s *slidingWindowCounterMemory) Allow(ctx context.Context, key string) (*Result, error) {
+func (s *slidingWindowCounterMemory) Allow(ctx context.Context, key string) (Result, error) {
 	return s.AllowN(ctx, key, 1)
 }
 
-func (s *slidingWindowCounterMemory) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (s *slidingWindowCounterMemory) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	maxReq, unlimited := s.opts.resolveLimit(ctx, key, s.maxRequests)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 
 	state, ok := s.states[key]
@@ -92,7 +92,7 @@ func (s *slidingWindowCounterMemory) AllowN(ctx context.Context, key string, n i
 		state.currentCount += int64(n)
 		newEstimate := prevWeight + float64(state.currentCount)
 		remaining := int64(math.Max(0, math.Floor(float64(maxReq)-newEstimate)))
-		return &Result{
+		return Result{
 			Allowed:   true,
 			Remaining: remaining,
 			Limit:     maxReq,
@@ -103,7 +103,7 @@ func (s *slidingWindowCounterMemory) AllowN(ctx context.Context, key string, n i
 	if retryAfter < time.Second {
 		retryAfter = time.Second
 	}
-	return &Result{
+	return Result{
 		Allowed:    false,
 		Remaining:  0,
 		Limit:      maxReq,
@@ -127,14 +127,14 @@ type slidingWindowCounterRedis struct {
 	opts          *Options
 }
 
-func (s *slidingWindowCounterRedis) Allow(ctx context.Context, key string) (*Result, error) {
+func (s *slidingWindowCounterRedis) Allow(ctx context.Context, key string) (Result, error) {
 	return s.AllowN(ctx, key, 1)
 }
 
-func (s *slidingWindowCounterRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (s *slidingWindowCounterRedis) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	maxReq, unlimited := s.opts.resolveLimit(ctx, key, s.maxRequests)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 	now := s.opts.now().Unix()
 	currentWindow := now / s.windowSeconds
@@ -168,7 +168,7 @@ func (s *slidingWindowCounterRedis) AllowN(ctx context.Context, key string, n in
 		if retryAfter > s.windowSeconds {
 			retryAfter = s.windowSeconds
 		}
-		return &Result{
+		return Result{
 			Allowed:    false,
 			Remaining:  0,
 			Limit:      maxReq,
@@ -187,7 +187,7 @@ func (s *slidingWindowCounterRedis) AllowN(ctx context.Context, key string, n in
 	newEstimate := weightedPrev + float64(newCount)
 	remaining := int64(math.Max(0, math.Floor(float64(maxReq)-newEstimate)))
 
-	return &Result{
+	return Result{
 		Allowed:   true,
 		Remaining: remaining,
 		Limit:     maxReq,
@@ -203,9 +203,9 @@ func (s *slidingWindowCounterRedis) Reset(ctx context.Context, key string) error
 	return s.redis.Del(ctx, currentKey, previousKey).Err()
 }
 
-func (s *slidingWindowCounterRedis) failResult(err error, limit int64) (*Result, error) {
+func (s *slidingWindowCounterRedis) failResult(err error, limit int64) (Result, error) {
 	if s.opts.FailOpen {
-		return &Result{Allowed: true, Remaining: limit - 1, Limit: limit}, nil
+		return Result{Allowed: true, Remaining: limit - 1, Limit: limit}, nil
 	}
-	return &Result{Allowed: false, Remaining: 0, Limit: limit}, redisErr(err, s.opts)
+	return Result{Allowed: false, Remaining: 0, Limit: limit}, redisErr(err, s.opts)
 }

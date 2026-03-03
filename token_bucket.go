@@ -51,17 +51,17 @@ type tokenBucketMemory struct {
 	opts       *Options
 }
 
-func (t *tokenBucketMemory) Allow(ctx context.Context, key string) (*Result, error) {
+func (t *tokenBucketMemory) Allow(ctx context.Context, key string) (Result, error) {
 	return t.AllowN(ctx, key, 1)
 }
 
-func (t *tokenBucketMemory) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (t *tokenBucketMemory) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	cap, unlimited := t.opts.resolveLimit(ctx, key, t.capacity)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 
 	state, ok := t.states[key]
@@ -82,7 +82,7 @@ func (t *tokenBucketMemory) AllowN(ctx context.Context, key string, n int) (*Res
 	if state.tokens >= cost {
 		state.tokens -= cost
 		remaining := int64(math.Floor(state.tokens))
-		return &Result{
+		return Result{
 			Allowed:   true,
 			Remaining: remaining,
 			Limit:     cap,
@@ -91,7 +91,7 @@ func (t *tokenBucketMemory) AllowN(ctx context.Context, key string, n int) (*Res
 
 	deficit := cost - state.tokens
 	retryAfter := time.Duration(math.Ceil(deficit/float64(t.refillRate)) * float64(time.Second))
-	return &Result{
+	return Result{
 		Allowed:    false,
 		Remaining:  0,
 		Limit:      cap,
@@ -157,14 +157,14 @@ type tokenBucketRedis struct {
 	opts       *Options
 }
 
-func (t *tokenBucketRedis) Allow(ctx context.Context, key string) (*Result, error) {
+func (t *tokenBucketRedis) Allow(ctx context.Context, key string) (Result, error) {
 	return t.AllowN(ctx, key, 1)
 }
 
-func (t *tokenBucketRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+func (t *tokenBucketRedis) AllowN(ctx context.Context, key string, n int) (Result, error) {
 	cap, unlimited := t.opts.resolveLimit(ctx, key, t.capacity)
 	if unlimited {
-		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+		return Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
 	}
 	fullKey := t.opts.FormatKey(key)
 	now := float64(t.opts.now().UnixNano()) / 1e9
@@ -177,16 +177,16 @@ func (t *tokenBucketRedis) AllowN(ctx context.Context, key string, n int) (*Resu
 	).Int64Slice()
 	if err != nil {
 		if t.opts.FailOpen {
-			return &Result{Allowed: true, Remaining: cap - 1, Limit: cap}, nil
+			return Result{Allowed: true, Remaining: cap - 1, Limit: cap}, nil
 		}
-		return &Result{Allowed: false, Remaining: 0, Limit: cap}, redisErr(err, t.opts)
+		return Result{Allowed: false, Remaining: 0, Limit: cap}, redisErr(err, t.opts)
 	}
 
 	allowed := result[0] == 1
 	remaining := result[1]
 	retryAfterSec := result[2]
 
-	return &Result{
+	return Result{
 		Allowed:    allowed,
 		Remaining:  remaining,
 		Limit:      cap,
