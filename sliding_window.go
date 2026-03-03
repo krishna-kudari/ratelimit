@@ -60,7 +60,10 @@ func (s *slidingWindowMemory) AllowN(ctx context.Context, key string, n int) (*R
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	maxReq := s.opts.resolveLimit(key, s.maxRequests)
+	maxReq, unlimited := s.opts.resolveLimit(ctx, key, s.maxRequests)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 
 	state, ok := s.states[key]
 	if !ok {
@@ -130,8 +133,11 @@ func (s *slidingWindowRedis) Allow(ctx context.Context, key string) (*Result, er
 }
 
 func (s *slidingWindowRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+	maxReq, unlimited := s.opts.resolveLimit(ctx, key, s.maxRequests)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 	fullKey := s.opts.FormatKey(key)
-	maxReq := s.opts.resolveLimit(key, s.maxRequests)
 	now := s.opts.now().UnixMilli()
 	windowStart := now - s.windowSeconds*1000
 

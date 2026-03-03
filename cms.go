@@ -133,7 +133,10 @@ func (r *cmsLimiter) AllowN(ctx context.Context, key string, n int) (*Result, er
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	limit := r.opts.resolveLimit(key, r.limit)
+	limit, unlimited := r.opts.resolveLimit(ctx, key, r.limit)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 	now := r.opts.now()
 	windowDuration := time.Duration(r.windowSeconds) * time.Second
 

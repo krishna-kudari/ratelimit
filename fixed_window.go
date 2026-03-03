@@ -58,7 +58,10 @@ func (f *fixedWindowMemory) AllowN(ctx context.Context, key string, n int) (*Res
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	maxReq := f.opts.resolveLimit(key, f.maxRequests)
+	maxReq, unlimited := f.opts.resolveLimit(ctx, key, f.maxRequests)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 
 	state, ok := f.states[key]
 	if !ok {
@@ -151,9 +154,11 @@ func (f *fixedWindowRedis) Allow(ctx context.Context, key string) (*Result, erro
 }
 
 func (f *fixedWindowRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+	maxReq, unlimited := f.opts.resolveLimit(ctx, key, f.maxRequests)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 	fullKey := f.opts.FormatKey(key)
-	maxReq := f.opts.resolveLimit(key, f.maxRequests)
-
 	result, err := fixedWindowScript.Run(ctx, f.redis, []string{fullKey},
 		maxReq,
 		f.windowSeconds,

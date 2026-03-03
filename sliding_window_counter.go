@@ -62,7 +62,10 @@ func (s *slidingWindowCounterMemory) AllowN(ctx context.Context, key string, n i
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	maxReq := s.opts.resolveLimit(key, s.maxRequests)
+	maxReq, unlimited := s.opts.resolveLimit(ctx, key, s.maxRequests)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 
 	state, ok := s.states[key]
 	if !ok {
@@ -128,7 +131,10 @@ func (s *slidingWindowCounterRedis) Allow(ctx context.Context, key string) (*Res
 }
 
 func (s *slidingWindowCounterRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
-	maxReq := s.opts.resolveLimit(key, s.maxRequests)
+	maxReq, unlimited := s.opts.resolveLimit(ctx, key, s.maxRequests)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 	now := s.opts.now().Unix()
 	currentWindow := now / s.windowSeconds
 	previousWindow := currentWindow - 1

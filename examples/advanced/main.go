@@ -21,7 +21,7 @@ func main() {
 	// Premium users get 100 req/min, free users get 5.
 	fmt.Println("=== Dynamic Per-Key Limits ===")
 	limiter, _ := goratelimit.NewFixedWindow(5, 60,
-		goratelimit.WithLimitFunc(func(key string) int64 {
+		goratelimit.WithLimitFunc(func(ctx context.Context, key string) int64 {
 			if key == "premium:user" {
 				return 100
 			}

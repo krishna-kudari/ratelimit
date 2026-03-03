@@ -133,7 +133,7 @@ grpc.ChainStreamInterceptor(grpcmw.StreamServerInterceptor(limiter, grpcmw.Strea
 
 ```go
 limiter, _ := goratelimit.NewFixedWindow(10, 60,
-    goratelimit.WithLimitFunc(func(key string) int64 {
+    goratelimit.WithLimitFunc(func(ctx context.Context, key string) int64 {
         if key == "premium" { return 1000 }
         return 0 // fallback to default
     }),

@@ -131,7 +131,7 @@ func ExampleCMSMemoryBytes() {
 
 func ExampleWithLimitFunc() {
 	limiter, _ := goratelimit.NewFixedWindow(5, 60,
-		goratelimit.WithLimitFunc(func(key string) int64 {
+		goratelimit.WithLimitFunc(func(ctx context.Context, key string) int64 {
 			if key == "premium" {
 				return 1000
 			}

@@ -93,7 +93,11 @@ func (l *leakyBucketMemory) AllowN(ctx context.Context, key string, n int) (*Res
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	cap := float64(l.opts.resolveLimit(key, l.limit))
+	limit, unlimited := l.opts.resolveLimit(ctx, key, l.limit)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
+	cap := float64(limit)
 
 	if l.mode == Shaping {
 		return l.allowShaping(key, n, cap)
@@ -271,8 +275,11 @@ func (l *leakyBucketRedis) Allow(ctx context.Context, key string) (*Result, erro
 }
 
 func (l *leakyBucketRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+	cap, unlimited := l.opts.resolveLimit(ctx, key, l.capacity)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 	fullKey := l.opts.FormatKey(key)
-	cap := l.opts.resolveLimit(key, l.capacity)
 	now := float64(l.opts.now().UnixNano()) / 1e9
 
 	script := luaPolicing

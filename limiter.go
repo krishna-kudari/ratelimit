@@ -9,6 +9,10 @@ import (
 	"github.com/krishna-kudari/ratelimit/store"
 )
 
+// Unlimited is the sentinel value for no rate limit. Return it from LimitFunc
+// to allow the key without consuming quota (e.g. trusted users, internal services).
+const Unlimited int64 = -1
+
 // Limiter is the core interface for all rate limiting algorithms.
 // All implementations (in-memory and Redis-backed) satisfy this interface,
 // making algorithms swappable without changing caller code.
@@ -60,9 +64,11 @@ type Options struct {
 	HashTag bool
 
 	// LimitFunc dynamically resolves the rate limit for each key.
-	// Returns the effective limit (maxRequests / capacity / burst) for the key.
-	// Returning <= 0 falls back to the construction-time default.
-	LimitFunc func(key string) int64
+	// Called with the request context (e.g. from middleware) so limits can depend on
+	// user plan, JWT claims, or other context values. Returns the effective limit
+	// (maxRequests / capacity / burst). Return Unlimited for no limit; return <= 0
+	// (other than Unlimited) to use the construction-time default.
+	LimitFunc func(ctx context.Context, key string) int64
 
 	// Clock provides the current time. If nil, time.Now is used.
 	// Inject a FakeClock in tests to advance time without time.Sleep.
@@ -108,10 +114,10 @@ func WithHashTag() Option {
 }
 
 // WithLimitFunc sets a dynamic limit resolver. The function is called on
-// every Allow/AllowN with the request key and returns the effective limit
-// (maxRequests for window algorithms, capacity for buckets, burst for GCRA).
-// Returning <= 0 falls back to the construction-time default.
-func WithLimitFunc(fn func(key string) int64) Option {
+// every Allow/AllowN with the request context and key. Use context for plan-based
+// limits (e.g. ctx.Value("plan")). Return the effective limit, Unlimited for
+// no limit, or <= 0 (other than Unlimited) to use the construction-time default.
+func WithLimitFunc(fn func(ctx context.Context, key string) int64) Option {
 	return func(o *Options) { o.LimitFunc = fn }
 }
 
@@ -144,15 +150,19 @@ func (o *Options) now() time.Time {
 	return time.Now()
 }
 
-// resolveLimit returns the dynamic limit for key, or defaultLimit when
-// LimitFunc is nil or returns <= 0.
-func (o *Options) resolveLimit(key string, defaultLimit int64) int64 {
+// resolveLimit returns the dynamic limit for key and whether the key is unlimited.
+// When unlimited is true, the caller should allow without updating state.
+func (o *Options) resolveLimit(ctx context.Context, key string, defaultLimit int64) (limit int64, unlimited bool) {
 	if o.LimitFunc != nil {
-		if v := o.LimitFunc(key); v > 0 {
-			return v
+		v := o.LimitFunc(ctx, key)
+		if v == Unlimited {
+			return 0, true
+		}
+		if v > 0 {
+			return v, false
 		}
 	}
-	return defaultLimit
+	return defaultLimit, false
 }
 
 // FormatKey builds a storage key. With HashTag enabled the user key is

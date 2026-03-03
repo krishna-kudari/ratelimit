@@ -59,7 +59,10 @@ func (t *tokenBucketMemory) AllowN(ctx context.Context, key string, n int) (*Res
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	cap := t.opts.resolveLimit(key, t.capacity)
+	cap, unlimited := t.opts.resolveLimit(ctx, key, t.capacity)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 
 	state, ok := t.states[key]
 	if !ok {
@@ -159,8 +162,11 @@ func (t *tokenBucketRedis) Allow(ctx context.Context, key string) (*Result, erro
 }
 
 func (t *tokenBucketRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+	cap, unlimited := t.opts.resolveLimit(ctx, key, t.capacity)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 	fullKey := t.opts.FormatKey(key)
-	cap := t.opts.resolveLimit(key, t.capacity)
 	now := float64(t.opts.now().UnixNano()) / 1e9
 
 	result, err := tokenBucketScript.Run(ctx, t.redis, []string{fullKey},

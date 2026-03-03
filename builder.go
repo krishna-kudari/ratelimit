@@ -1,6 +1,7 @@
 package goratelimit
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -169,10 +170,9 @@ func (b *Builder) FailOpen(v bool) *Builder {
 }
 
 // LimitFunc sets a dynamic per-key limit resolver.
-// The function is called on every Allow/AllowN and overrides the
-// construction-time limit (maxRequests / capacity / burst).
-// Returning <= 0 falls back to the default.
-func (b *Builder) LimitFunc(fn func(key string) int64) *Builder {
+// The function is called on every Allow/AllowN with context and key.
+// Return the limit, goratelimit.Unlimited for no limit, or <= 0 to use the default.
+func (b *Builder) LimitFunc(fn func(ctx context.Context, key string) int64) *Builder {
 	b.opts = append(b.opts, WithLimitFunc(fn))
 	return b
 }

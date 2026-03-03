@@ -62,7 +62,10 @@ func (g *gcraMemory) AllowN(ctx context.Context, key string, n int) (*Result, er
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	burst := g.opts.resolveLimit(key, g.burst)
+	burst, unlimited := g.opts.resolveLimit(ctx, key, g.burst)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 	burstAllowance := float64(burst-1) * g.emissionInterval
 
 	state, ok := g.states[key]
@@ -142,8 +145,11 @@ func (g *gcraRedis) Allow(ctx context.Context, key string) (*Result, error) {
 }
 
 func (g *gcraRedis) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+	burst, unlimited := g.opts.resolveLimit(ctx, key, g.burst)
+	if unlimited {
+		return &Result{Allowed: true, Remaining: Unlimited, Limit: Unlimited}, nil
+	}
 	fullKey := g.opts.FormatKey(key)
-	burst := g.opts.resolveLimit(key, g.burst)
 	burstAllowance := float64(burst-1) * g.emissionInterval
 	now := float64(g.opts.now().UnixNano()) / 1e9
 	increment := g.emissionInterval * float64(n)

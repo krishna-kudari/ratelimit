@@ -232,7 +232,7 @@ func TestCMS_LimitFunc(t *testing.T) {
 	ctx := context.Background()
 
 	limiter, err := goratelimit.NewCMS(100, 60, 0.01, 0.001,
-		goratelimit.WithLimitFunc(func(key string) int64 {
+		goratelimit.WithLimitFunc(func(ctx context.Context, key string) int64 {
 			if key == "vip" {
 				return 10
 			}

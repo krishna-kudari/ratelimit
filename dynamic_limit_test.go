@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func limitByKey(key string) int64 {
+func limitByKey(ctx context.Context, key string) int64 {
 	switch key {
 	case "premium":
 		return 1000
@@ -116,7 +116,7 @@ func TestDynamicLimit_GCRA(t *testing.T) {
 
 func TestDynamicLimit_FallbackToDefault(t *testing.T) {
 	ctx := context.Background()
-	fn := func(key string) int64 {
+	fn := func(ctx context.Context, key string) int64 {
 		if key == "custom" {
 			return 50
 		}
@@ -134,7 +134,7 @@ func TestDynamicLimit_FallbackToDefault(t *testing.T) {
 
 func TestDynamicLimit_NegativeReturnFallback(t *testing.T) {
 	ctx := context.Background()
-	fn := func(key string) int64 { return -1 }
+	fn := func(ctx context.Context, key string) int64 { return 0 }
 
 	l, _ := NewTokenBucket(20, 5, WithLimitFunc(fn))
 
@@ -146,7 +146,7 @@ func TestDynamicLimit_Builder(t *testing.T) {
 	ctx := context.Background()
 	l, err := NewBuilder().
 		FixedWindow(10, 60*time.Second).
-		LimitFunc(func(key string) int64 {
+		LimitFunc(func(ctx context.Context, key string) int64 {
 			if key == "vip" {
 				return 500
 			}
@@ -168,4 +168,31 @@ func TestDynamicLimit_NilFunc(t *testing.T) {
 
 	res, _ := l.Allow(ctx, "key")
 	assert.Equal(t, int64(10), res.Limit)
+}
+
+func TestDynamicLimit_Unlimited(t *testing.T) {
+	ctx := context.Background()
+	l, err := NewFixedWindow(10, 60, WithLimitFunc(func(ctx context.Context, key string) int64 {
+		if key == "admin" {
+			return Unlimited
+		}
+		return 0
+	}))
+	require.NoError(t, err)
+
+	// Exhaust default limit for one key
+	for i := 0; i < 10; i++ {
+		res, _ := l.Allow(ctx, "user")
+		require.True(t, res.Allowed, "request %d", i+1)
+	}
+	res, _ := l.Allow(ctx, "user")
+	require.False(t, res.Allowed, "11th request should be denied")
+
+	// Unlimited key is never denied and does not consume quota
+	for i := 0; i < 20; i++ {
+		res, _ := l.Allow(ctx, "admin")
+		require.True(t, res.Allowed, "admin request %d", i+1)
+		assert.Equal(t, Unlimited, res.Limit)
+		assert.Equal(t, Unlimited, res.Remaining)
+	}
 }
