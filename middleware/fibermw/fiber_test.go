@@ -1,6 +1,7 @@
 package fibermw_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -52,6 +53,25 @@ func TestRateLimit_DeniesExceedingLimit(t *testing.T) {
 	resp := doReq(app, "GET", "/api/data", nil)
 	require.Equal(t, 429, resp.StatusCode)
 	assert.NotEmpty(t, resp.Header.Get("Retry-After"), "expected Retry-After header")
+}
+
+func TestRateLimit_DefaultDeniedBody_JSON(t *testing.T) {
+	limiter := must(goratelimit.NewFixedWindow(1, 60))
+	app := newApp(fibermw.RateLimit(limiter, fibermw.KeyByIP))
+
+	doReq(app, "GET", "/api/data", nil)
+	resp := doReq(app, "GET", "/api/data", nil)
+
+	require.Equal(t, 429, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get("Content-Type"), "application/json")
+
+	var body map[string]interface{}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+	assert.Equal(t, "rate limit exceeded", body["error"])
+	assert.Equal(t, float64(1), body["limit"])
+	assert.Equal(t, float64(0), body["remaining"])
+	assert.NotEmpty(t, body["reset_at"])
+	assert.NotNil(t, body["retry_after"])
 }
 
 func TestRateLimit_ExcludePaths(t *testing.T) {

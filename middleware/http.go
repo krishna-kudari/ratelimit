@@ -1,11 +1,12 @@
 package middleware
 
 import (
-	"fmt"
+	"encoding/json"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	goratelimit "github.com/krishna-kudari/ratelimit"
 )
@@ -172,14 +173,30 @@ func defaultErrorHandler(w http.ResponseWriter, _ *http.Request, _ error) {
 
 func defaultDeniedHandler(message string, statusCode int) DeniedHandler {
 	if message == "" {
-		message = "Too Many Requests"
+		message = "rate limit exceeded"
 	}
 	if statusCode == 0 {
 		statusCode = http.StatusTooManyRequests
 	}
 	return func(w http.ResponseWriter, _ *http.Request, result *goratelimit.Result) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		retryAfter := int(result.RetryAfter.Seconds() + 0.5)
+		body := deniedBody{
+			Error:      message,
+			Limit:      result.Limit,
+			Remaining:  result.Remaining,
+			ResetAt:    result.ResetAt.UTC().Format(time.RFC3339),
+			RetryAfter: retryAfter,
+		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(statusCode)
-		fmt.Fprintln(w, message)
+		json.NewEncoder(w).Encode(body)
 	}
+}
+
+type deniedBody struct {
+	Error      string `json:"error"`
+	Limit      int64  `json:"limit"`
+	Remaining  int64  `json:"remaining"`
+	ResetAt    string `json:"reset_at"`
+	RetryAfter int    `json:"retry_after"`
 }

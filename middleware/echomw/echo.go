@@ -13,6 +13,7 @@ package echomw
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -140,8 +141,14 @@ func setHeaders(c echo.Context, result *goratelimit.Result) {
 	}
 }
 
-func defaultDeniedHandler(c echo.Context, _ *goratelimit.Result) error {
-	return c.JSON(http.StatusTooManyRequests, map[string]string{"error": "rate limit exceeded"})
+func defaultDeniedHandler(c echo.Context, result *goratelimit.Result) error {
+	return c.JSON(http.StatusTooManyRequests, map[string]interface{}{
+		"error":       "rate limit exceeded",
+		"limit":       result.Limit,
+		"remaining":   result.Remaining,
+		"reset_at":    result.ResetAt.UTC().Format(time.RFC3339),
+		"retry_after": int(result.RetryAfter.Seconds() + 0.5),
+	})
 }
 
 func defaultErrorHandler(c echo.Context, err error) error {

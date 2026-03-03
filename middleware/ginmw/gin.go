@@ -13,6 +13,7 @@ package ginmw
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -139,8 +140,14 @@ func setHeaders(c *gin.Context, result *goratelimit.Result) {
 	}
 }
 
-func defaultDeniedHandler(c *gin.Context, _ *goratelimit.Result) {
-	c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
+func defaultDeniedHandler(c *gin.Context, result *goratelimit.Result) {
+	c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+		"error":       "rate limit exceeded",
+		"limit":       result.Limit,
+		"remaining":   result.Remaining,
+		"reset_at":    result.ResetAt.UTC().Format(time.RFC3339),
+		"retry_after": int(result.RetryAfter.Seconds() + 0.5),
+	})
 }
 
 func defaultErrorHandler(c *gin.Context, _ error) {

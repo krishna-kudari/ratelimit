@@ -1,6 +1,7 @@
 package middleware_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -62,6 +63,35 @@ func TestRateLimit_DeniesExceedingLimit(t *testing.T) {
 	assert.Equal(t, http.StatusTooManyRequests, rr.Code)
 	assert.NotEmpty(t, rr.Header().Get("Retry-After"), "expected Retry-After header on 429 response")
 	assert.Equal(t, "0", rr.Header().Get("X-RateLimit-Remaining"))
+}
+
+func TestRateLimit_DefaultDeniedBody_JSON(t *testing.T) {
+	limiter, err := goratelimit.NewFixedWindow(1, 60)
+	require.NoError(t, err)
+
+	handler := middleware.RateLimit(limiter, middleware.KeyByIP)(okHandler())
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	req.RemoteAddr = "100.0.0.1:1111"
+	handler.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest("GET", "/", nil)
+	req.RemoteAddr = "100.0.0.1:1111"
+	handler.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusTooManyRequests, rr.Code)
+	assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+
+	var body map[string]interface{}
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&body))
+	assert.Equal(t, "rate limit exceeded", body["error"])
+	assert.Equal(t, float64(1), body["limit"])
+	assert.Equal(t, float64(0), body["remaining"])
+	assert.NotEmpty(t, body["reset_at"])
+	assert.NotNil(t, body["retry_after"])
 }
 
 func TestRateLimit_SeparateKeysTrackedIndependently(t *testing.T) {

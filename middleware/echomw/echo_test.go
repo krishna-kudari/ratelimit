@@ -1,6 +1,7 @@
 package echomw_test
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"testing"
 
@@ -53,6 +54,32 @@ func TestRateLimit_DeniesExceedingLimit(t *testing.T) {
 
 	require.Equal(t, 429, w.Code)
 	assert.NotEmpty(t, w.Header().Get("Retry-After"), "expected Retry-After header")
+}
+
+func TestRateLimit_DefaultDeniedBody_JSON(t *testing.T) {
+	limiter := must(goratelimit.NewFixedWindow(1, 60))
+	e := newEcho(echomw.RateLimit(limiter, echomw.KeyByRealIP))
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/data", nil)
+	req.RemoteAddr = "100.0.0.1:1234"
+	e.ServeHTTP(w, req)
+
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest("GET", "/api/data", nil)
+	req.RemoteAddr = "100.0.0.1:1234"
+	e.ServeHTTP(w, req)
+
+	require.Equal(t, 429, w.Code)
+	assert.Contains(t, w.Header().Get("Content-Type"), "application/json")
+
+	var body map[string]interface{}
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
+	assert.Equal(t, "rate limit exceeded", body["error"])
+	assert.Equal(t, float64(1), body["limit"])
+	assert.Equal(t, float64(0), body["remaining"])
+	assert.NotEmpty(t, body["reset_at"])
+	assert.NotNil(t, body["retry_after"])
 }
 
 func TestRateLimit_ExcludePaths(t *testing.T) {

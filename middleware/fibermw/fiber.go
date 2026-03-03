@@ -13,6 +13,7 @@ package fibermw
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -136,8 +137,14 @@ func setHeaders(c *fiber.Ctx, result *goratelimit.Result) {
 	}
 }
 
-func defaultDeniedHandler(c *fiber.Ctx, _ *goratelimit.Result) error {
-	return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "rate limit exceeded"})
+func defaultDeniedHandler(c *fiber.Ctx, result *goratelimit.Result) error {
+	return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+		"error":       "rate limit exceeded",
+		"limit":       result.Limit,
+		"remaining":   result.Remaining,
+		"reset_at":    result.ResetAt.UTC().Format(time.RFC3339),
+		"retry_after": int(result.RetryAfter.Seconds() + 0.5),
+	})
 }
 
 func defaultErrorHandler(c *fiber.Ctx, _ error) error {
