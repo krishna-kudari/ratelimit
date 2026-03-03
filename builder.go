@@ -169,6 +169,18 @@ func (b *Builder) FailOpen(v bool) *Builder {
 	return b
 }
 
+// DryRun enables dry-run mode: never deny, log when a request would have been denied.
+func (b *Builder) DryRun(dryRun bool) *Builder {
+	b.opts = append(b.opts, WithDryRun(dryRun))
+	return b
+}
+
+// DryRunLogFunc sets the logger called when dry run would have denied a request.
+func (b *Builder) DryRunLogFunc(fn func(key string, result *Result)) *Builder {
+	b.opts = append(b.opts, WithDryRunLogFunc(fn))
+	return b
+}
+
 // LimitFunc sets a dynamic per-key limit resolver.
 // The function is called on every Allow/AllowN with context and key.
 // Return the limit, goratelimit.Unlimited for no limit, or <= 0 to use the default.

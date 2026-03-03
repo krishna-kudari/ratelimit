@@ -21,19 +21,19 @@ func NewTokenBucket(capacity, refillRate int64, opts ...Option) (Limiter, error)
 	o := applyOptions(opts)
 
 	if o.RedisClient != nil {
-		return &tokenBucketRedis{
+		return wrapDryRun(&tokenBucketRedis{
 			redis:      o.RedisClient,
 			capacity:   capacity,
 			refillRate: refillRate,
 			opts:       o,
-		}, nil
+		}, o), nil
 	}
-	return &tokenBucketMemory{
+	return wrapDryRun(&tokenBucketMemory{
 		states:     make(map[string]*tokenBucketState),
 		capacity:   capacity,
 		refillRate: refillRate,
 		opts:       o,
-	}, nil
+	}, o), nil
 }
 
 // ─── In-Memory ───────────────────────────────────────────────────────────────

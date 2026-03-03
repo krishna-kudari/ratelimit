@@ -20,19 +20,19 @@ func NewFixedWindow(maxRequests, windowSeconds int64, opts ...Option) (Limiter, 
 	o := applyOptions(opts)
 
 	if o.RedisClient != nil {
-		return &fixedWindowRedis{
+		return wrapDryRun(&fixedWindowRedis{
 			redis:         o.RedisClient,
 			maxRequests:   maxRequests,
 			windowSeconds: windowSeconds,
 			opts:          o,
-		}, nil
+		}, o), nil
 	}
-	return &fixedWindowMemory{
+	return wrapDryRun(&fixedWindowMemory{
 		states:        make(map[string]*fixedWindowState),
 		maxRequests:   maxRequests,
 		windowSeconds: windowSeconds,
 		opts:          o,
-	}, nil
+	}, o), nil
 }
 
 // ─── In-Memory ───────────────────────────────────────────────────────────────

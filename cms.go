@@ -104,7 +104,7 @@ func NewCMS(limit, windowSeconds int64, epsilon, delta float64, opts ...Option) 
 	width := int(math.Ceil(math.E / epsilon))
 	depth := int(math.Ceil(math.Log(1 / delta)))
 
-	return &cmsLimiter{
+	return wrapDryRun(&cmsLimiter{
 		current:       newCountMinSketch(width, depth),
 		previous:      newCountMinSketch(width, depth),
 		windowSeconds: windowSeconds,
@@ -113,7 +113,7 @@ func NewCMS(limit, windowSeconds int64, epsilon, delta float64, opts ...Option) 
 		width:         width,
 		depth:         depth,
 		opts:          o,
-	}, nil
+	}, o), nil
 }
 
 // CMSMemoryBytes returns the approximate heap usage of a CMS limiter

@@ -165,3 +165,15 @@ func ExampleWithClock() {
 	// before advance: allowed=false
 	// after advance:  allowed=true
 }
+
+func ExampleWithDryRun() {
+	limiter, _ := goratelimit.NewFixedWindow(2, 60, goratelimit.WithDryRun(true))
+	ctx := context.Background()
+
+	limiter.Allow(ctx, "key")
+	limiter.Allow(ctx, "key")
+	// Would be denied without dry run; with dry run still allowed
+	r, _ := limiter.Allow(ctx, "key")
+	fmt.Printf("allowed=%v (limit=%d remaining=%d)\n", r.Allowed, r.Limit, r.Remaining)
+	// Output: allowed=true (limit=2 remaining=0)
+}

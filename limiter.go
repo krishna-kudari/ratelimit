@@ -2,6 +2,7 @@ package goratelimit
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -73,6 +74,16 @@ type Options struct {
 	// Clock provides the current time. If nil, time.Now is used.
 	// Inject a FakeClock in tests to advance time without time.Sleep.
 	Clock Clock
+
+	// DryRun, when true, never denies: Allow/AllowN always return Allowed=true,
+	// but when a request would have been denied, the optional DryRunLogFunc is
+	// called (or log.Printf with [DRYRUN] prefix if nil) so operators can see
+	// what would be rate limited.
+	DryRun bool
+
+	// DryRunLogFunc is called when DryRun is true and a request would have been
+	// denied. If nil, log.Printf("[DRYRUN] would deny key=...") is used.
+	DryRunLogFunc func(key string, result *Result)
 }
 
 // Option is a functional option for configuring a Limiter.
@@ -125,6 +136,19 @@ func WithLimitFunc(fn func(ctx context.Context, key string) int64) Option {
 // Advance to simulate elapsed time without time.Sleep.
 func WithClock(clock Clock) Option {
 	return func(o *Options) { o.Clock = clock }
+}
+
+// WithDryRun enables dry-run mode: the limiter never denies; when a request
+// would have been denied, DryRunLogFunc is called (or [DRYRUN] is logged).
+// Use for safe production rollout to observe what would be rate limited.
+func WithDryRun(dryRun bool) Option {
+	return func(o *Options) { o.DryRun = dryRun }
+}
+
+// WithDryRunLogFunc sets the logger called when DryRun is true and a request
+// would have been denied. If nil, log.Printf with [DRYRUN] prefix is used.
+func WithDryRunLogFunc(fn func(key string, result *Result)) Option {
+	return func(o *Options) { o.DryRunLogFunc = fn }
 }
 
 func defaultOptions() *Options {
@@ -182,4 +206,53 @@ func (o *Options) FormatKeySuffix(key, suffix string) string {
 		return o.KeyPrefix + ":{" + key + "}:" + suffix
 	}
 	return o.KeyPrefix + ":" + key + ":" + suffix
+}
+
+// dryRunLimiter wraps a Limiter and converts denials into allows when DryRun is true,
+// logging what would have been blocked.
+type dryRunLimiter struct {
+	inner Limiter
+	opts  *Options
+}
+
+func (d *dryRunLimiter) Allow(ctx context.Context, key string) (*Result, error) {
+	return d.allowN(ctx, key, 1)
+}
+
+func (d *dryRunLimiter) AllowN(ctx context.Context, key string, n int) (*Result, error) {
+	return d.allowN(ctx, key, n)
+}
+
+func (d *dryRunLimiter) allowN(ctx context.Context, key string, n int) (*Result, error) {
+	result, err := d.inner.AllowN(ctx, key, n)
+	if err != nil {
+		return nil, err
+	}
+	if result.Allowed {
+		return result, nil
+	}
+	if d.opts.DryRunLogFunc != nil {
+		d.opts.DryRunLogFunc(key, result)
+	} else {
+		log.Printf("[DRYRUN] would deny key=%s limit=%d remaining=%d retry_after=%v",
+			key, result.Limit, result.Remaining, result.RetryAfter)
+	}
+	return &Result{
+		Allowed:   true,
+		Remaining: result.Remaining,
+		Limit:     result.Limit,
+		ResetAt:   result.ResetAt,
+	}, nil
+}
+
+func (d *dryRunLimiter) Reset(ctx context.Context, key string) error {
+	return d.inner.Reset(ctx, key)
+}
+
+// wrapDryRun returns a limiter that applies dry-run behavior when opts.DryRun is true.
+func wrapDryRun(inner Limiter, opts *Options) Limiter {
+	if opts != nil && opts.DryRun {
+		return &dryRunLimiter{inner: inner, opts: opts}
+	}
+	return inner
 }

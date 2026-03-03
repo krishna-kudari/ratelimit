@@ -23,19 +23,19 @@ func NewSlidingWindow(maxRequests, windowSeconds int64, opts ...Option) (Limiter
 	o := applyOptions(opts)
 
 	if o.RedisClient != nil {
-		return &slidingWindowRedis{
+		return wrapDryRun(&slidingWindowRedis{
 			redis:         o.RedisClient,
 			maxRequests:   maxRequests,
 			windowSeconds: windowSeconds,
 			opts:          o,
-		}, nil
+		}, o), nil
 	}
-	return &slidingWindowMemory{
+	return wrapDryRun(&slidingWindowMemory{
 		states:        make(map[string]*slidingWindowState),
 		maxRequests:   maxRequests,
 		windowSeconds: windowSeconds,
 		opts:          o,
-	}, nil
+	}, o), nil
 }
 
 // ─── In-Memory ───────────────────────────────────────────────────────────────

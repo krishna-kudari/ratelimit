@@ -22,21 +22,21 @@ func NewGCRA(rate, burst int64, opts ...Option) (Limiter, error) {
 	burstAllowance := float64(burst-1) * emissionInterval
 
 	if o.RedisClient != nil {
-		return &gcraRedis{
+		return wrapDryRun(&gcraRedis{
 			redis:            o.RedisClient,
 			emissionInterval: emissionInterval,
 			burstAllowance:   burstAllowance,
 			burst:            burst,
 			opts:             o,
-		}, nil
+		}, o), nil
 	}
-	return &gcraMemory{
+	return wrapDryRun(&gcraMemory{
 		states:           make(map[string]*gcraState),
 		emissionInterval: emissionInterval,
 		burstAllowance:   burstAllowance,
 		burst:            burst,
 		opts:             o,
-	}, nil
+	}, o), nil
 }
 
 // ─── In-Memory ───────────────────────────────────────────────────────────────
